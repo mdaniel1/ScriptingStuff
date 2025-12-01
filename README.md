@@ -20,3 +20,4 @@ Once in the game (either create a new save or load one), open the menu and press
 4. +10 PP Max : **G + U**
 5. 100% shiny encounters (also affects pokemon trainers) : **F + Y**
 6. Set your party's IVs to 31 : **G + Y**
+7. All EV items : **F + U**
