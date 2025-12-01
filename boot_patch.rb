@@ -66,55 +66,56 @@ module SaveEditorHook
     begin
        # Register each press event
       [:A, :B, :X, :Y, :L, :R, :L3, :R3, :START].each do |k|
-        PSDKCheat.register_press(k) if Input.trigger?(k)
+        Cheat.register_press(k) if Input.trigger?(k)
       end
 
       # === ADDING ITEMS ===
-      if PSDKCheat.consume_combo?(:L, :R) #Keyboard input : F + G
+      if Cheat.consume_combo?(:L, :R) #Keyboard input : F + G
         puts "[CHEAT] Combo L+R detected"
-        PSDKCheat.give_item(gs, :rare_candy, 10, 6)
+        Cheat.give_item(gs, :rare_candy, 10, 6)
       end
 
-      if PSDKCheat.consume_combo?(:L, :START) #Keyboard input : F + J
+      if Cheat.consume_combo?(:L, :START) #Keyboard input : F + J
         puts "[CHEAT] Combo L+START detected -> Link Stone"
-        PSDKCheat.give_item(gs, :link_stone, 1, 1) 
+        Cheat.give_item(gs, :link_stone, 1, 1) 
       end
 
-      if PSDKCheat.consume_combo?(:R, :START) #Keyboard input : G + J
+      if Cheat.consume_combo?(:R, :START) #Keyboard input : G + J
         puts "[CHEAT] Combo R+START detected -> Master Ball"
-        PSDKCheat.give_item(gs, :master_ball, 1, 2) 
+        Cheat.give_item(gs, :master_ball, 1, 2) 
       end
 
-      if PSDKCheat.consume_combo?(:R, :R3) #Keyboard input : G + U
+      if Cheat.consume_combo?(:R, :R3) #Keyboard input : G + U
         puts "[CHEAT] Combo R+START detected -> PP Max"
-        PSDKCheat.give_item(gs, :pp_max, 10, 6) 
+        Cheat.give_item(gs, :pp_max, 10, 6) 
       end
 
-      if PSDKCheat.consume_combo?(:L, :R3) #Keyboard input : F + U
+      if Cheat.consume_combo?(:L, :R3) #Keyboard input : F + U
         puts "[CHEAT] Combo L+START detected -> All EV items"
-        PSDKCheat.give_item(gs, :iron, 100, 6)
-        PSDKCheat.give_item(gs, :protein, 100, 6)
-        PSDKCheat.give_item(gs, :calcium, 100, 6)
-        PSDKCheat.give_item(gs, :zinc, 100, 6)
-        PSDKCheat.give_item(gs, :hp_up, 100, 6)
-        PSDKCheat.give_item(gs, :carbos, 100, 6)
+        Cheat.give_item(gs, :iron, 100, 6)
+        Cheat.give_item(gs, :protein, 100, 6)
+        Cheat.give_item(gs, :calcium, 100, 6)
+        Cheat.give_item(gs, :zinc, 100, 6)
+        Cheat.give_item(gs, :hp_up, 100, 6)
+        Cheat.give_item(gs, :carbos, 100, 6)
       end
 
       # === FORCING SHINY ===
-      if PSDKCheat.consume_combo?(:L, :L3) #Keyboard input : F + Y
+      if Cheat.consume_combo?(:L, :L3) #Keyboard input : F + Y
         puts "[CHEAT] Combo L+Y => Toggle shiny encounters"
-        PSDKCheat.toggle_shiny_encounters
+        Cheat.toggle_shiny_encounters
       end
 
       # === SETTING PARTY IVS to 31 ===
-      if PSDKCheat.consume_combo?(:R, :L3)  # G + Y
+      if Cheat.consume_combo?(:R, :L3)  # G + Y
         puts "[CHEAT] Combo R+L3 detected → Max IVs for party"
-        PSDKCheat.max_iv_party(gs)
+        Cheat.max_iv_party(gs)
       end
 
     rescue => e
       puts "[CHEAT DEBUG] Error: #{e}"
     end
+
   end
 
   def self.install_for(klass)
@@ -185,7 +186,7 @@ module SaveEditorHook
           #PSDKSaveDump.dump(gs) if gs
           result
         end
-        puts "[INJECT] Dumping on Save"
+        #puts "[INJECT] Dumping on Save"
       end
     end
   end
@@ -195,7 +196,7 @@ end
 # --------------------------------------------------
 #  Cheat manager (no Set)
 # --------------------------------------------------
-module PSDKCheat
+module Cheat
   @@combo_times = {}
   @@force_shiny_encounters = false
 
@@ -281,11 +282,11 @@ end
 # --------------------------------------------------
 #  Wild shiny patch – only for encounter groups
 # --------------------------------------------------
-module PrismWildShinyPatch
+module ShinyPatch
   def to_creature(*args, &blk)
     pokemon = super
 
-    if defined?(PSDKCheat) && PSDKCheat.force_shiny? && pokemon.is_a?(PFM::Pokemon)
+    if defined?(Cheat) && Cheat.force_shiny? && pokemon.is_a?(PFM::Pokemon)
       begin
         pokemon.shiny = true
         puts "[SHINY] Forced shiny on #{pokemon.db_symbol rescue '??'} Lv#{pokemon.level rescue '?'}"
@@ -304,7 +305,7 @@ TracePoint.new(:class) do |tp|
   next unless name == "Studio::Group::Encounter"
 
   puts "[SHINY] Studio::Group::Encounter loaded → installing wild shiny patch"
-  mod.prepend(PrismWildShinyPatch)
+  mod.prepend(ShinyPatch)
 end.enable
 
 
