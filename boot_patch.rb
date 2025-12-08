@@ -1,6 +1,25 @@
 # boot_patch.rb
 puts "[INJECT] boot_patch loaded"
 
+module ItemProbe
+  def self.dump_possible_ability_patch_symbols
+    found = []
+
+    ObjectSpace.each_object(Hash) do |h|
+      # filter bag- or item-db-type hashes by size (not mandatory)
+      h.keys.grep(Symbol).each do |k|
+        if k.to_s =~ /aroma|arom|nature|mint/i
+          found << k unless found.include?(k)
+        end
+      end
+    end
+
+    puts "=== [ITEM PROBE] Possible symbols ==="
+    found.each { |sym| puts "  #{sym.inspect}" }
+    puts "=== [ITEM PROBE] end ==="
+  end
+end
+
 # --------------------------------------------------
 #  Hook manager (no Set)
 # --------------------------------------------------
@@ -78,6 +97,7 @@ module SaveEditorHook
       if Cheat.consume_combo?(:L, :START) #Keyboard input : F + J
         puts "[CHEAT] Combo L+START detected -> Link Stone"
         Cheat.give_item(gs, :link_stone, 1, 1) 
+        #ItemProbe.dump_possible_ability_patch_symbols
       end
 
       if Cheat.consume_combo?(:R, :START) #Keyboard input : G + J
@@ -86,8 +106,14 @@ module SaveEditorHook
       end
 
       if Cheat.consume_combo?(:R, :R3) #Keyboard input : G + U
-        puts "[CHEAT] Combo R+START detected -> PP Max"
+        puts "[CHEAT] Combo R+START detected -> Lots of consumable items"
         Cheat.give_item(gs, :pp_max, 10, 6) 
+        Cheat.give_item(gs, :full_restore, 10, 6)
+        Cheat.give_item(gs, :max_revive, 10, 6)
+        Cheat.give_item(gs, :max_elixir, 10, 6)
+        Cheat.give_item(gs, :patch_talent, 10, 6)
+        Cheat.give_item(gs, :ability_capsule, 10, 6)
+        Cheat.give_item(gs, :natural_mint, 10, 6)
       end
 
       if Cheat.consume_combo?(:L, :R3) #Keyboard input : F + U
@@ -111,6 +137,25 @@ module SaveEditorHook
         puts "[CHEAT] Combo R+L3 detected → Max IVs for party"
         Cheat.max_iv_party(gs)
       end
+
+      if Cheat.consume_combo?(:START, :L3) #Keyboard input : J + Y
+        puts "[CHEAT] Combo START+L3 detected -> All held items"
+        Cheat.give_all_held_items(gs)
+      end
+
+      # === RESET LEAD ABILITY TO FIRST ===
+      if Cheat.consume_combo?(:START, :R3)  # Keyboard: J + U
+        puts "[CHEAT] Combo START+R3 detected → Reset lead ability to first ability"
+        pkm = gs.actors[0]
+        puts "[DEBUG] --- Ability probe for #{pkm.name} ---"
+        puts "Instance vars: #{pkm.instance_variables}"
+        pkm.instance_variables.each do |iv|
+          val = pkm.instance_variable_get(iv)
+          puts "  #{iv} = #{val.inspect}"
+        end
+        Cheat.reset_ability(gs)
+      end
+
 
     rescue => e
       puts "[CHEAT DEBUG] Error: #{e}"
@@ -199,6 +244,84 @@ end
 module Cheat
   @@combo_times = {}
   @@force_shiny_encounters = false
+
+  # --------------------------------------------------
+  #  Give 1× of every held item from PSDK database
+  # --------------------------------------------------
+  def self.give_all_held_items(game_state)
+    held_items = [
+      # Stat-boosting type items
+      :hard_stone, :soft_sand, :spell_tag, :miracle_seed, :sharp_beak,
+      :twisted_spoon, :silver_powder, :poison_barb, :charcoal,
+      :never_melt_ice, :dragon_fang, :black_belt,
+      :metal_coat, :magnet, :mystic_water, :black_glasses,
+      :silk_scarf,
+
+      # Weather rock items
+      :icy_rock, :smooth_rock, :heat_rock, :damp_rock,
+
+      # Evolution-related but holdable
+      :deepseascale, :deepseatooth,
+      :king_rock, :dragon_scale,
+      :up_grade, :dubious_disc,
+      :razor_claw, :razor_fang,
+      :protector, :electirizer, :magmarizer,
+      :reaper_cloth,
+
+      # Power items
+      :power_weight, :power_bracer, :power_belt,
+      :power_lens, :power_band, :power_anklet,
+
+      # Choice items
+      :choice_band, :choice_specs, :choice_scarf,
+
+      # Other competitive held items
+      :leftovers, :light_ball, :light_clay,
+      :big_root, :life_orb, :focus_sash,
+      :air_balloon, :rocky_helmet,
+      :muscle_band, :wise_glasses, :expert_belt,
+
+      # Accuracy / crit items
+      :scope_lens, :razor_claw, :wide_lens, :zoom_lens,
+
+      # Misc held items
+      :soothe_bell, :amulet_coin, :lucky_egg,
+      :quick_claw, :shell_bell, :mental_herb, :white_herb,
+      :black_sludge, :lagging_tail, :iron_ball,
+      :float_stone, :light_stone, :dark_stone,
+
+      # Plates (Arceus type items - if Prism includes them)
+      :flame_plate, :splash_plate, :zap_plate, :meadow_plate,
+      :icicle_plate, :fist_plate, :toxic_plate, :earth_plate,
+      :sky_plate, :mind_plate, :insect_plate, :stone_plate,
+      :spooky_plate, :draco_plate, :dread_plate, :iron_plate
+    ]
+    held_items.each do |sym|
+      give_item(game_state, sym, 1, 1)
+    end
+
+    puts "[CHEAT] Granted every held item (#{held_items.size} items)."
+  end
+
+  def self.reset_ability(game_state)
+    pkm = game_state.actors[0] rescue nil
+    return unless pkm
+
+    db = pkm.data rescue nil
+    return unless db
+
+    abilities = db.abilities rescue nil
+    return unless abilities && abilities[0]
+
+    target_index = 0 
+    pkm.ability_index = target_index
+
+    # Update displayed ability (@ability)
+    pkm.instance_variable_set(:@ability, abilities[target_index])
+    pkm.instance_variable_set(:@ability_used, false)
+
+    puts "[CHEAT] Lead Pokémon ability reset → #{abilities[target_index]}"
+  end
 
   def self.max_iv_party(game_state)
     party = game_state.actors rescue nil
