@@ -1,9 +1,8 @@
 # boot_patch.rb
 
 - Go to the main game folder
-
-for example, Linux when the game is installed through Lutris : /home/YOUR_USER/Games/pokemon-prism/drive_c/users/YOUR_USER/AppData/Roaming/Pokemon Prisme/
-
+    - Linux (Lutris) : /home/YOUR_USER/Games/pokemon-prism/drive_c/users/YOUR_USER/AppData/Roaming/Pokemon Prisme/
+    - Windows : C:\Users\YOUR_USER\AppData\Roaming\Pokemon Prisme\
 - Copy the boot_patch.rb file in it
 
 - Add this line to Game.rb, before the load_from_binary instruction :
