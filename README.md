@@ -10,14 +10,14 @@ for example, Linux when the game is installed through Lutris : /home/YOUR_USER/G
 `load "boot_patch.rb"`
 
 - Launch the game with ruby
-`wine ruby.exe Game.rb`
+`wine ruby.exe Game.rb` or `WINEDEBUG=fixme-all,-dinput wine ruby.exe Game.rb` if you want to disable the annoying dinput log flooding the console 
 
 Once in the game (either create a new save or load one), open the menu and press those key combos : 
 
 1. +10 Rare Candies : **F + G** 
 2. +1 Link Stone : **F + J**
 3. +1 Master Ball : **G + J**
-4. +10 PP Max : **G + U**
+4. Lots of consumables : **G + U**
 5. All EV items : **F + U**
 6. 100% shiny encounters (also affects pokemon trainers) : **F + Y**
 7. Set your party's IVs to 31 : **G + Y**
