@@ -18,6 +18,8 @@ Once in the game (either create a new save or load one), open the menu and press
 2. +1 Link Stone : **F + J**
 3. +1 Master Ball : **G + J**
 4. +10 PP Max : **G + U**
-5. 100% shiny encounters (also affects pokemon trainers) : **F + Y**
-6. Set your party's IVs to 31 : **G + Y**
-7. All EV items : **F + U**
+5. All EV items : **F + U**
+6. 100% shiny encounters (also affects pokemon trainers) : **F + Y**
+7. Set your party's IVs to 31 : **G + Y**
+8. All held items (pouch 1) : **J + Y**
+9. Reset the ability for the first pokemon in the party : **J + U**
