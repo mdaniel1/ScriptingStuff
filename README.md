@@ -13,12 +13,18 @@
 
 Once in the game (either create a new save or load one), open the menu and press those key combos : 
 
-1. +10 Rare Candies : **F + G** 
-2. +1 Link Stone : **F + J**
-3. +1 Master Ball : **G + J**
-4. Lots of consumables : **G + U**
-5. All EV items : **F + U**
-6. 100% shiny encounters (also affects pokemon trainers) : **F + Y**
-7. Set your party's IVs to 31 : **G + Y**
-8. All held items (pouch 1) : **J + Y**
-9. Reset the ability for the first pokemon in the party : **J + U**
+1. +10 Rare Candies : **F + G**
+2. Add all HM special items : **X + C**
+3. Add all TMs : **X + J**
+4. +1 Link Stone : **F + J**
+5. +1 Master Ball : **G + J**
+6. Lots of precious consumables x10 : **G + U**
+7. All EV items x25 : **F + U**
+8. 100% shiny encounters (also affects pokemon trainers) : **F + Y**
+9. Set your party's IVs to 31 + Happiness to max (255) : **G + Y**
+10. All held items x1 : **J + Y**
+11. Reset the ability for the first pokemon in the party : **J + U**
+12. Override wild encounter to Pokedex ID (*) : **J + C**
+----------------
+(*) For now, need to manually change the ID in the code, might change it in the future to work more like old ActionReplay (first item in item pouch x999, discard to match the desired ID and then go in the tall grass)
+Problem is, not all pokemons are in the game so it would probably crash the game if you set an incorrect ID, idk.
