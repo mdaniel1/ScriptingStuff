@@ -1,14 +1,107 @@
 # boot_patch.rb
 puts "[INJECT] boot_patch loaded"
 
+module SaveDump
+  FILE = "save_dump.txt"
+
+  def self.dump(game_state)
+    File.open(FILE, "w:utf-8") do |f|
+      f.puts "=== SAVE DUMP ==="
+      f.puts
+
+      # -------------------------------
+      # Trainer
+      # -------------------------------
+      trainer = game_state.trainer rescue nil
+      if trainer
+        f.puts "Trainer:"
+        f.puts "  Name: #{trainer.name rescue '???'}"
+        
+      else
+        f.puts "Trainer: NOT FOUND"
+      end
+
+      # -------------------------------
+      # Bag
+      # -------------------------------
+      f.puts
+      f.puts "Bag:"
+
+      bag = game_state.instance_variable_get(:@bag) rescue nil
+      if bag
+        orders = bag.instance_variable_get(:@orders) rescue []
+        items  = bag.instance_variable_get(:@items)  rescue {}
+
+        orders.each_with_index do |pocket, idx|
+          next unless pocket.is_a?(Array) && !pocket.empty?
+
+          f.puts "  Pocket #{idx}:"
+          pocket.each do |item_sym|
+            qty = items[item_sym] || 0
+            next if qty <= 0
+            f.puts "    #{item_sym} x#{qty}"
+          end
+          f.puts
+        end
+      else
+        f.puts "  Bag not found"
+      end
+
+      f.puts
+      f.puts "Party:"
+
+      # -------------------------------
+      # Party
+      # -------------------------------
+      party = game_state.actors rescue nil
+      unless party.respond_to?(:each)
+        f.puts "  Party not found"
+        return
+      end
+
+      party.each_with_index do |p, i|
+        next unless p.is_a?(PFM::Pokemon)
+
+        name = p.given_name || p.db_symbol.to_s.capitalize
+        f.puts "  [#{i}] #{p.db_symbol} (#{name})"
+        f.puts "    Level: #{p.level}"
+        f.puts "    Happiness: #{p.loyalty}"
+
+        f.puts "    IVs:"
+        f.puts "      hp:  #{p.iv_hp}"
+        f.puts "      atk: #{p.iv_atk}"
+        f.puts "      def: #{p.iv_dfe}"
+        f.puts "      spa: #{p.iv_ats}"
+        f.puts "      spd: #{p.iv_dfs}"
+        f.puts "      spe: #{p.iv_spd}"
+
+        f.puts "    EVs:"
+        f.puts "      hp:  #{p.ev_hp}"
+        f.puts "      atk: #{p.ev_atk}"
+        f.puts "      def: #{p.ev_dfe}"
+        f.puts "      spa: #{p.ev_ats}"
+        f.puts "      spd: #{p.ev_dfs}"
+        f.puts "      spe: #{p.ev_spd}"
+
+        f.puts
+      end
+
+      f.puts "=== END SAVE DUMP ==="
+    end
+
+    puts "[DUMP] save_dump.txt written"
+  end
+end
+
+
 module ItemProbe
-  def self.dump_possible_ability_patch_symbols
+  def self.dump_possible_item
     found = []
 
     ObjectSpace.each_object(Hash) do |h|
       # filter bag- or item-db-type hashes by size (not mandatory)
       h.keys.grep(Symbol).each do |k|
-        if k.to_s =~ /aroma|arom|nature|mint/i
+        if k.to_s =~ /dentier|denture|dent|jetpack|lampe|grappin|poing|bou|ceinture|turbo/i
           found << k unless found.include?(k)
         end
       end
@@ -17,6 +110,15 @@ module ItemProbe
     puts "=== [ITEM PROBE] Possible symbols ==="
     found.each { |sym| puts "  #{sym.inspect}" }
     puts "=== [ITEM PROBE] end ==="
+  end
+end
+
+module WildOverrideBoundary
+  def to_creature(*args, &blk)
+    Thread.current[:__prism_in_wild_to_creature] = true
+    super
+  ensure
+    Thread.current[:__prism_in_wild_to_creature] = false
   end
 end
 
@@ -42,6 +144,10 @@ module SaveEditorHook
     # START : J
     # L3 : Y
     # R3 : U
+    # UP : W
+    # DOWN : S
+    # LEFT : A
+    # RIGHT : D
     # SELECT : Num1/Num7 only, unreliable for keyboards who don't have a numpad
     # ============================================================
     #  PSDK BAG STRUCTURE (Prism version)
@@ -92,12 +198,23 @@ module SaveEditorHook
       if Cheat.consume_combo?(:L, :R) #Keyboard input : F + G
         puts "[CHEAT] Combo L+R detected"
         Cheat.give_item(gs, :rare_candy, 10, 6)
+        #Cheat.give_item(gs, :big_mushroom, 200, 1)
+      end
+
+      if Cheat.consume_combo?(:B, :A) #Keyboard input : X + C
+        puts "[CHEAT] Combo B+A detected -> All HM special items"
+        Cheat.add_all_hm_items(gs)
+      end
+
+      if Cheat.consume_combo?(:B, :START) #Keyboard input : X + J
+        puts "[CHEAT] Combo B+START detected -> All TMs"
+        Cheat.add_all_tms(gs)
       end
 
       if Cheat.consume_combo?(:L, :START) #Keyboard input : F + J
         puts "[CHEAT] Combo L+START detected -> Link Stone"
         Cheat.give_item(gs, :link_stone, 1, 1) 
-        #ItemProbe.dump_possible_ability_patch_symbols
+        #ItemProbe.dump_possible_item
       end
 
       if Cheat.consume_combo?(:R, :START) #Keyboard input : G + J
@@ -118,12 +235,12 @@ module SaveEditorHook
 
       if Cheat.consume_combo?(:L, :R3) #Keyboard input : F + U
         puts "[CHEAT] Combo L+START detected -> All EV items"
-        Cheat.give_item(gs, :iron, 100, 6)
-        Cheat.give_item(gs, :protein, 100, 6)
-        Cheat.give_item(gs, :calcium, 100, 6)
-        Cheat.give_item(gs, :zinc, 100, 6)
-        Cheat.give_item(gs, :hp_up, 100, 6)
-        Cheat.give_item(gs, :carbos, 100, 6)
+        Cheat.give_item(gs, :iron, 25, 6)
+        Cheat.give_item(gs, :protein, 25, 6)
+        Cheat.give_item(gs, :calcium, 25, 6)
+        Cheat.give_item(gs, :zinc, 25, 6)
+        Cheat.give_item(gs, :hp_up, 25, 6)
+        Cheat.give_item(gs, :carbos, 25, 6)
       end
 
       # === FORCING SHINY ===
@@ -135,7 +252,7 @@ module SaveEditorHook
       # === SETTING PARTY IVS to 31 ===
       if Cheat.consume_combo?(:R, :L3)  # G + Y
         puts "[CHEAT] Combo R+L3 detected → Max IVs for party"
-        Cheat.max_iv_party(gs)
+        Cheat.max_stats_party(gs)
       end
 
       if Cheat.consume_combo?(:START, :L3) #Keyboard input : J + Y
@@ -145,17 +262,17 @@ module SaveEditorHook
 
       # === RESET LEAD ABILITY TO FIRST ===
       if Cheat.consume_combo?(:START, :R3)  # Keyboard: J + U
-        puts "[CHEAT] Combo START+R3 detected → Reset lead ability to first ability"
-        pkm = gs.actors[0]
-        puts "[DEBUG] --- Ability probe for #{pkm.name} ---"
-        puts "Instance vars: #{pkm.instance_variables}"
-        pkm.instance_variables.each do |iv|
-          val = pkm.instance_variable_get(iv)
-          puts "  #{iv} = #{val.inspect}"
-        end
         Cheat.reset_ability(gs)
       end
 
+      # === OVERRIDE WILD ENCOUNTERS TO POKEDEX ID ===
+      if Cheat.consume_combo?(:START, :A)  # J + C for example
+        if Cheat.wild_species_override
+          Cheat.clear_wild_override
+        else
+          Cheat.set_wild_override(374)
+        end
+      end
 
     rescue => e
       puts "[CHEAT DEBUG] Error: #{e}"
@@ -228,7 +345,7 @@ module SaveEditorHook
         def main(*args, &block)
           result = __orig_main(*args, &block)
           gs = (defined?(PFM) && PFM.game_state) || $game_state
-          #PSDKSaveDump.dump(gs) if gs
+          #SaveDump.dump(gs) if gs
           result
         end
         #puts "[INJECT] Dumping on Save"
@@ -244,6 +361,7 @@ end
 module Cheat
   @@combo_times = {}
   @@force_shiny_encounters = false
+  @@wild_species_override = nil
 
   # --------------------------------------------------
   #  Give 1× of every held item from PSDK database
@@ -303,6 +421,46 @@ module Cheat
     puts "[CHEAT] Granted every held item (#{held_items.size} items)."
   end
 
+  def self.add_all_hm_items(game_state)
+    bag = game_state.instance_variable_get(:@bag) rescue nil
+    return unless bag
+
+    items = bag.instance_variable_get(:@items) rescue {}
+
+    hm_items = [:ceinture_karate, :dentier_acere, :grappin, :jetpack, :lampe_torche, :poing_ressort, :poke_bouee, :turbopropulseur]
+
+    hm_items.each do |id|
+      next if (items[id] || 0) > 0
+      give_item(game_state,id,1,5)
+    end
+  end
+
+  def self.add_all_tms(game_state)
+    bag = game_state.instance_variable_get(:@bag) rescue nil
+    return unless bag
+
+    items = bag.instance_variable_get(:@items) rescue {}
+
+    tms = [
+      :tm01, :tm02, :tm03, :tm04, :tm05, :tm06, :tm07, :tm08, :tm09, :tm10,
+      :tm11, :tm12, :tm13, :tm14, :tm15, :tm16, :tm17, :tm18, :tm19, :tm20,
+      :tm21, :tm22, :tm23, :tm24, :tm25, :tm26, :tm27, :tm28, :tm29, :tm30,
+      :tm31, :tm32, :tm33, :tm34, :tm35, :tm36, :tm37, :tm38, :tm39, :tm40,
+      :tm41, :tm42, :tm43, :tm44, :tm45, :tm46, :tm47, :tm48, :tm49, :tm50,
+      :tm51, :tm52, :tm53, :tm54, :tm55, :tm56, :tm57, :tm58, :tm59, :tm60,
+      :tm61, :tm62, :tm63, :tm64, :tm65, :tm66, :tm67, :tm68, :tm69, :tm70,
+      :tm71, :tm72, :tm73, :tm74, :tm75, :tm76, :tm77, :tm78, :tm79, :tm80,
+      :tm81, :tm82, :tm83, :tm84, :tm85, :tm86, :tm87, :tm88, :tm89, :tm90,
+      :tm91, :tm92, :tm93, :tm94, :tm95, :tm96, :tm97, :tm98, :tm99, :tm100,
+      :tm101, :tm102, :tm103
+    ]
+
+    tms.each do |id|
+      next if (items[id] || 0) > 0
+      give_item(game_state, id, 1, 3)
+    end
+  end
+
   def self.reset_ability(game_state)
     pkm = game_state.actors[0] rescue nil
     return unless pkm
@@ -323,7 +481,7 @@ module Cheat
     puts "[CHEAT] Lead Pokémon ability reset → #{abilities[target_index]}"
   end
 
-  def self.max_iv_party(game_state)
+  def self.max_stats_party(game_state)
     party = game_state.actors rescue nil
     return unless party.respond_to?(:each)
 
@@ -336,9 +494,11 @@ module Cheat
       pkm.iv_spd = 31
       pkm.iv_ats = 31
       pkm.iv_dfs = 31
+      # Also sets max happiness.
+      pkm.loyalty = 255
     end
 
-    puts "[CHEAT] Max IV applied to entire party!"
+    puts "[CHEAT] Max IV + Happiness applied to entire party!"
   end
 
   def self.register_press(key)
@@ -400,6 +560,51 @@ module Cheat
   def self.force_shiny?
     @@force_shiny_encounters
   end
+
+  def self.wild_species_override
+    @@wild_species_override
+  end
+
+  def self.set_wild_override(target)
+    @@wild_species_override = target
+    puts "[CHEAT] Wild encounter override => #{target.inspect}"
+  end
+
+  def self.clear_wild_override
+    @@wild_species_override = nil
+    puts "[CHEAT] Wild encounter override => OFF"
+  end
+
+  # Best-effort resolver: Integer dex/id -> :db_symbol
+  def self.resolve_species_symbol(target)
+    return target if target.is_a?(Symbol)
+
+    if target.is_a?(Integer)
+      # Try various DB entrypoints depending on Prism/PSDK build
+      begin
+        if defined?(GameData) && GameData.const_defined?(:Pokemon) && GameData::Pokemon.respond_to?(:[])
+          obj = GameData::Pokemon[target]
+          return obj.db_symbol if obj.respond_to?(:db_symbol)
+          return obj[:db_symbol] if obj.is_a?(Hash) && obj[:db_symbol]
+        end
+      rescue
+      end
+
+      begin
+        if defined?(Studio) && Studio.const_defined?(:Pokemon) && Studio::Pokemon.respond_to?(:[])
+          obj = Studio::Pokemon[target]
+          return obj.db_symbol if obj.respond_to?(:db_symbol)
+        end
+      rescue
+      end
+
+      # Fallback: if constructor accepts integer directly, let it through
+      return target
+    end
+
+    target
+  end
+
 end
 
 # --------------------------------------------------
@@ -422,6 +627,29 @@ module ShinyPatch
   end
 end
 
+module WildSpeciesOverride
+  def initialize(*args, &blk)
+    if Thread.current[:__prism_in_wild_to_creature] &&
+       defined?(Cheat) &&
+       (target = Cheat.wild_species_override)
+
+      begin
+        resolved = Cheat.resolve_species_symbol(target)
+        # PFM::Pokemon.new typically starts with (species, level, ...)
+        if args && args.size > 0
+          old = args[0]
+          args[0] = resolved
+          puts "[WILD] Overriding wild species #{old.inspect} -> #{resolved.inspect}"
+        end
+      rescue => e
+        puts "[WILD] Override error: #{e.class}: #{e.message}"
+      end
+    end
+
+    super(*args, &blk)
+  end
+end
+
 TracePoint.new(:class) do |tp|
   mod = tp.self rescue nil
   name = mod.name rescue nil
@@ -429,8 +657,16 @@ TracePoint.new(:class) do |tp|
 
   puts "[SHINY] Studio::Group::Encounter loaded → installing wild shiny patch"
   mod.prepend(ShinyPatch)
+  mod.prepend(WildOverrideBoundary)
 end.enable
 
+TracePoint.new(:class) do |tp|
+  mod = tp.self rescue nil
+  next unless mod && (mod.name rescue nil) == "PFM::Pokemon"
+
+  puts "[WILD] PFM::Pokemon loaded → installing species override"
+  mod.prepend(WildSpeciesOverride)
+end.enable
 
 # --------------------------------------------------
 #  Trace GamePlay::* class loads and patch them
